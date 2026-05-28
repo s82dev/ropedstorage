@@ -2,67 +2,111 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Multi-Entschlüssler</title>
+  <title>Encrypt & Decrypt</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <style>
     body { background:#111; color:#eee; font-family:sans-serif; text-align:center; }
+    input { margin:8px; padding:6px; }
+    button { padding:8px 14px; margin:6px; }
     img { max-width:90%; margin-top:20px; display:none; }
+    .box { border:1px solid #444; padding:20px; margin:20px; }
   </style>
 </head>
 <body>
 
-<h2>Passwort eingeben</h2>
-<input type="password" id="pw" placeholder="Passwort">
-<button onclick="unlock()">Entschlüsseln</button>
-<p id="msg"></p>
+<h1>Encrypt & Decrypt</h1>
 
-<img id="output">
+<div class="box">
+  <h2>🔐 Verschlüsseln</h2>
+  <input type="file" id="encFile" accept="image/*"><br>
+  <input type="password" id="encPw" placeholder="Passwort"><br>
+  <button onclick="encrypt()">Verschlüsseln</button>
+  <p id="encMsg"></p>
+</div>
+
+<div class="box">
+  <h2>🔓 Entschlüsseln</h2>
+  <input type="password" id="decPw" placeholder="Passwort"><br>
+  <button onclick="decrypt()">Entschlüsseln</button>
+  <p id="decMsg"></p>
+  <img id="output">
+</div>
 
 <script>
-  // Liste der verschlüsselten Dateien
-  const FILES = [
+async function encrypt() {
+  const file = document.getElementById("encFile").files[0];
+  const pw = document.getElementById("encPw").value;
+  const msg = document.getElementById("encMsg");
+
+  if (!file || !pw) {
+    msg.textContent = "Datei und Passwort wählen.";
+    return;
+  }
+
+  const buffer = await file.arrayBuffer();
+  const wordArray = CryptoJS.lib.WordArray.create(buffer);
+
+  const key = CryptoJS.enc.Utf8.parse(pw);
+  const iv = CryptoJS.enc.Utf8.parse(pw.substring(0,16));
+
+  const encrypted = CryptoJS.AES.encrypt(wordArray, key, {
+    iv: iv,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7
+  });
+
+  const base64 = encrypted.toString();
+  const blob = new Blob([base64], { type: "text/plain" });
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = file.name + ".enc";
+  a.click();
+
+  msg.textContent = "Verschlüsselt: " + a.download;
+}
+
+async function decrypt() {
+  const pw = document.getElementById("decPw").value;
+  const msg = document.getElementById("decMsg");
+  const out = document.getElementById("output");
+
+  msg.textContent = "Suche passende Datei...";
+
+  const files = [
     "bild_a.enc",
     "bild_b.enc",
     "bild_c.enc"
   ];
 
-  async function unlock() {
-    const pw = document.getElementById("pw").value;
-    const msg = document.getElementById("msg");
-    msg.textContent = "Prüfe Dateien...";
+  for (let file of files) {
+    try {
+      const text = await fetch(file).then(r => r.text());
+      const decrypted = CryptoJS.AES.decrypt(text, CryptoJS.enc.Utf8.parse(pw), {
+        iv: CryptoJS.enc.Utf8.parse(pw.substring(0,16)),
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      });
 
-    for (let file of FILES) {
-      try {
-        const data = await fetch(file).then(r => r.arrayBuffer());
-        const wordArray = CryptoJS.lib.WordArray.create(data);
+      const bytes = decrypted.sigBytes;
+      if (bytes <= 0) continue;
 
-        const decrypted = CryptoJS.AES.decrypt(
-          { ciphertext: wordArray },
-          CryptoJS.enc.Utf8.parse(pw),
-          { mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7, iv: CryptoJS.enc.Utf8.parse(pw.substring(0,16)) }
-        );
+      const typed = new Uint8Array(bytes);
+      for (let i = 0; i < bytes; i++) {
+        typed[i] = decrypted.words[i >>> 2] >>> (24 - (i % 4) * 8);
+      }
 
-        const bytes = decrypted.sigBytes;
-        if (bytes <= 0) continue;
+      const blob = new Blob([typed], { type: "image/jpeg" });
+      out.src = URL.createObjectURL(blob);
+      out.style.display = "block";
 
-        const typed = new Uint8Array(bytes);
-        for (let i = 0; i < bytes; i++) {
-          typed[i] = decrypted.words[i >>> 2] >>> (24 - (i % 4) * 8);
-        }
-
-        const blob = new Blob([typed], { type: "image/jpeg" });
-        const url = URL.createObjectURL(blob);
-
-        document.getElementById("output").src = url;
-        document.getElementById("output").style.display = "block";
-        msg.textContent = "Erfolgreich entschlüsselt.";
-        return;
-
-      } catch (e) {}
-    }
-
-    msg.textContent = "Kein Bild mit diesem Passwort gefunden.";
+      msg.textContent = "Erfolgreich entschlüsselt: " + file;
+      return;
+    } catch (e) {}
   }
+
+  msg.textContent = "Kein Bild mit diesem Passwort gefunden.";
+}
 </script>
 
 </body>
