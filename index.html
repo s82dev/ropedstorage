@@ -1,47 +1,44 @@
 <!DOCTYPE html>
-<html lang="de">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Passwort-Video</title>
+  <title>Geschütztes Video</title>
   <style>
-    body { font-family: sans-serif; background:#111; color:#eee; text-align:center; }
-    #video-container { display:none; margin-top:20px; }
+    body { background:#111; color:#eee; font-family:sans-serif; text-align:center; }
+    #video { display:none; margin-top:20px; }
     input { padding:8px; }
-    button { padding:8px 14px; margin-left:6px; }
+    button { padding:8px 14px; }
   </style>
 </head>
 <body>
 
-  <h1>Geschütztes Video</h1>
+<h2>Passwort eingeben</h2>
 
-  <div id="login">
-    <input type="password" id="pw" placeholder="Passwort">
-    <button onclick="checkPassword()">OK</button>
-    <p id="msg"></p>
-  </div>
+<input type="password" id="pw" placeholder="Passwort">
+<button onclick="unlock()">OK</button>
+<p id="msg"></p>
 
-  <div id="video-container">
-    <video id="vid" width="640" controls></video>
-  </div>
+<video id="video" width="640" controls>
+  <source id="src" type="video/mp4">
+</video>
 
-  <script>
-    const CORRECT_PW = "meinpasswort";      // <-- hier dein Passwort
-    const VIDEO_URL  = "video.mp4";         // <-- hier dein Videoname
+<script>
+  const PASS = "1234";        // <-- dein Passwort
+  const VIDEO = "video.mp4";  // <-- dein Video
 
-    function checkPassword() {
-      const pw = document.getElementById("pw").value;
-      const msg = document.getElementById("msg");
+  function unlock() {
+    const pw = document.getElementById("pw").value;
+    const msg = document.getElementById("msg");
 
-      if (pw === CORRECT_PW) {
-        document.getElementById("login").style.display = "none";
-        const vid = document.getElementById("vid");
-        vid.src = VIDEO_URL;
-        document.getElementById("video-container").style.display = "block";
-      } else {
-        msg.textContent = "Falsches Passwort.";
-      }
+    if (pw === PASS) {
+      document.getElementById("src").src = VIDEO;
+      document.getElementById("video").style.display = "block";
+      msg.textContent = "";
+    } else {
+      msg.textContent = "Falsches Passwort.";
     }
-  </script>
+  }
+</script>
 
 </body>
-</html>  
+</html>
