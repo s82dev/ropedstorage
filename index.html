@@ -2,41 +2,66 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Geschütztes Video</title>
+  <title>Multi-Entschlüssler</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   <style>
     body { background:#111; color:#eee; font-family:sans-serif; text-align:center; }
-    #video { display:none; margin-top:20px; }
-    input { padding:8px; }
-    button { padding:8px 14px; }
+    img { max-width:90%; margin-top:20px; display:none; }
   </style>
 </head>
 <body>
 
 <h2>Passwort eingeben</h2>
-
 <input type="password" id="pw" placeholder="Passwort">
-<button onclick="unlock()">OK</button>
+<button onclick="unlock()">Entschlüsseln</button>
 <p id="msg"></p>
 
-<video id="video" width="640" controls>
-  <source id="src" type="video/mp4">
-</video>
+<img id="output">
 
 <script>
-  const PASS = "1234";        // <-- dein Passwort
-  const VIDEO = "video.mp4";  // <-- dein Video
+  // Liste der verschlüsselten Dateien
+  const FILES = [
+    "bild_a.enc",
+    "bild_b.enc",
+    "bild_c.enc"
+  ];
 
-  function unlock() {
+  async function unlock() {
     const pw = document.getElementById("pw").value;
     const msg = document.getElementById("msg");
+    msg.textContent = "Prüfe Dateien...";
 
-    if (pw === PASS) {
-      document.getElementById("src").src = VIDEO;
-      document.getElementById("video").style.display = "block";
-      msg.textContent = "";
-    } else {
-      msg.textContent = "Falsches Passwort.";
+    for (let file of FILES) {
+      try {
+        const data = await fetch(file).then(r => r.arrayBuffer());
+        const wordArray = CryptoJS.lib.WordArray.create(data);
+
+        const decrypted = CryptoJS.AES.decrypt(
+          { ciphertext: wordArray },
+          CryptoJS.enc.Utf8.parse(pw),
+          { mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7, iv: CryptoJS.enc.Utf8.parse(pw.substring(0,16)) }
+        );
+
+        const bytes = decrypted.sigBytes;
+        if (bytes <= 0) continue;
+
+        const typed = new Uint8Array(bytes);
+        for (let i = 0; i < bytes; i++) {
+          typed[i] = decrypted.words[i >>> 2] >>> (24 - (i % 4) * 8);
+        }
+
+        const blob = new Blob([typed], { type: "image/jpeg" });
+        const url = URL.createObjectURL(blob);
+
+        document.getElementById("output").src = url;
+        document.getElementById("output").style.display = "block";
+        msg.textContent = "Erfolgreich entschlüsselt.";
+        return;
+
+      } catch (e) {}
     }
+
+    msg.textContent = "Kein Bild mit diesem Passwort gefunden.";
   }
 </script>
 
